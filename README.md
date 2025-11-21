@@ -25,16 +25,20 @@ Ele utiliza técnicas avançadas de **resiliência**, **retry com exponential ba
 - **Rust** (instalado via `rustup`)
 - Dependências de compilação (Linux):
 
-bash
+```bash
 sudo apt install pkg-config libssl-dev
+````
+
+---
 
 ## 1. Clonar e Acessar o Repositório
 
-bash
+```bash
 git clone https://github.com/NoHup-lgtm/FerrisFetch.git
 cd FerrisFetch
+```
 
-
+---
 
 ## 2. Execução via Linha de Comando (CLI)
 
@@ -43,14 +47,15 @@ O separador `--` é obrigatório para passar a URL ao programa.
 
 ### Exemplo:
 
-bash
-cargo run -- URL-TARGET/
+```bash
+cargo run -- https://www.reidoscoins.com.br/
+```
 
-
+---
 
 ## 🔍 Exemplo de Output
 
-text
+```text
  ╔═╗╔═╗╦═╗╔═╗╦═╗╦ ╦╔═╗╦ ╦
  ║ ║╠═╝╠╦╝╠═╣╠╦╝║║║╠═╣╚╦╝
  ╚═╝╩  ╩╚═╩ ╩╩╚═╚╩╝╩ ╩ ╩ 
@@ -67,6 +72,7 @@ text
 [+] Status SUCESSO: 200 OK
 [+] Saved to: downloads/style.css
 ...
+```
 
 ---
 
@@ -80,9 +86,12 @@ Ajuste os parâmetros do Crawler em `src/main.rs`:
 | `INITIAL_DELAY_SECONDS`  | **2**  | Tempo de espera entre cada download.                               |
 | `RETRY_DELAY_MULTIPLIER` | **2**  | Multiplicador do atraso em caso de erro 429 (ex: 2s → 4s → 8s...). |
 
+---
 
 ## 📄 Licença
 
 Este projeto é licenciado sob a **MIT License**.
 
 **Autor:** *NoHup-lgtm*
+
+```
