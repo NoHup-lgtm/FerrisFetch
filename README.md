@@ -93,5 +93,3 @@ Ajuste os parâmetros do Crawler em `src/main.rs`:
 Este projeto é licenciado sob a **MIT License**.
 
 **Autor:** *NoHup-lgtm*
-
-```
