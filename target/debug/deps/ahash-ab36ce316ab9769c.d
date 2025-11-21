@@ -1,0 +1,12 @@
+/home/kali/FerrisFetch/FerrisFetch/target/debug/deps/ahash-ab36ce316ab9769c.d: /home/kali/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ahash-0.8.12/src/lib.rs /home/kali/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ahash-0.8.12/src/convert.rs /home/kali/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ahash-0.8.12/src/fallback_hash.rs /home/kali/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ahash-0.8.12/src/operations.rs /home/kali/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ahash-0.8.12/src/random_state.rs /home/kali/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ahash-0.8.12/src/specialize.rs /home/kali/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ahash-0.8.12/src/hash_map.rs /home/kali/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ahash-0.8.12/src/hash_set.rs
+
+/home/kali/FerrisFetch/FerrisFetch/target/debug/deps/libahash-ab36ce316ab9769c.rmeta: /home/kali/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ahash-0.8.12/src/lib.rs /home/kali/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ahash-0.8.12/src/convert.rs /home/kali/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ahash-0.8.12/src/fallback_hash.rs /home/kali/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ahash-0.8.12/src/operations.rs /home/kali/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ahash-0.8.12/src/random_state.rs /home/kali/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ahash-0.8.12/src/specialize.rs /home/kali/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ahash-0.8.12/src/hash_map.rs /home/kali/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ahash-0.8.12/src/hash_set.rs
+
+/home/kali/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ahash-0.8.12/src/lib.rs:
+/home/kali/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ahash-0.8.12/src/convert.rs:
+/home/kali/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ahash-0.8.12/src/fallback_hash.rs:
+/home/kali/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ahash-0.8.12/src/operations.rs:
+/home/kali/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ahash-0.8.12/src/random_state.rs:
+/home/kali/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ahash-0.8.12/src/specialize.rs:
+/home/kali/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ahash-0.8.12/src/hash_map.rs:
+/home/kali/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ahash-0.8.12/src/hash_set.rs:
