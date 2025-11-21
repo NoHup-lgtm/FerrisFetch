@@ -1,29 +1,29 @@
-# 🦀 FerrisFetch: Web Crawler Resiliente e CLI
+# 🦀 FerrisFetch: Resilient Web Crawler & CLI
 
-FerrisFetch é um Web Crawler robusto escrito em **Rust**, projetado para baixar páginas web e todos os seus recursos associados (CSS, JS, imagens) de forma segura, eficiente e educada com os servidores.
+FerrisFetch is a robust **Rust**-based Web Crawler designed to download web pages and all their associated resources (CSS, JS, images) in a safe, efficient, and server-friendly way.
 
-Ele utiliza técnicas avançadas de **resiliência**, **retry com exponential backoff** e **controle de taxa** para evitar bloqueios e garantir a conclusão dos downloads.
-
----
-
-## ✨ Funcionalidades Principais
-
-| Recurso               | Descrição |
-|-----------------------|-----------|
-| **Download Completo** | Baixa o HTML principal e todos os ativos vinculados (`<img>`, `<link>`, `<script>`). |
-| **Resiliência de Rede** | Requisições falhas são repetidas utilizando *Exponential Backoff*. |
-| **Controle de Taxa** | Atraso configurável entre downloads para evitar sobrecarregar servidores. |
-| **Interface CLI** | Recebe a URL diretamente como argumento (ex: `cargo run -- URL`). |
-| **Output Estilizado** | Logs coloridos, ASCII art e tags `[+]`, `[*]`, `[-]`. |
+It uses advanced techniques such as **network resilience**, **retry with exponential backoff**, and **rate limiting** to avoid blocks and ensure successful downloads.
 
 ---
 
-## 🛠️ Como Executar a Ferramenta
+## ✨ Key Features
 
-### Pré-requisitos
+| Feature               | Description |
+|-----------------------|-------------|
+| **Full Download** | Downloads the main HTML and all linked assets (`<img>`, `<link>`, `<script>`). |
+| **Network Resilience** | Failed requests are automatically retried using *Exponential Backoff*. |
+| **Rate Limiting** | Configurable delay between downloads to prevent server overload. |
+| **CLI Interface** | Accepts the target URL directly as an argument (e.g. `cargo run -- URL`). |
+| **Styled Output** | Colorful logs, ASCII art, and tags like `[+]`, `[*]`, `[-]`. |
 
-- **Rust** (instalado via `rustup`)
-- Dependências de compilação (Linux):
+---
+
+## 🛠️ How to Run the Tool
+
+### Requirements
+
+- **Rust** (installed via `rustup`)
+- Build dependencies (Linux):
 
 ```bash
 sudo apt install pkg-config libssl-dev
@@ -31,7 +31,7 @@ sudo apt install pkg-config libssl-dev
 
 ---
 
-## 1. Clonar e Acessar o Repositório
+## 1. Clone and Enter the Repository
 
 ```bash
 git clone https://github.com/NoHup-lgtm/FerrisFetch.git
@@ -40,56 +40,56 @@ cd FerrisFetch
 
 ---
 
-## 2. Execução via Linha de Comando (CLI)
+## 2. Run via Command Line (CLI)
 
-Use `cargo run --` seguido da URL completa.
-O separador `--` é obrigatório para passar a URL ao programa.
+Use `cargo run --` followed by the full URL.
+The `--` separator is required to pass the argument correctly.
 
-### Exemplo:
+### Example:
 
 ```bash
-cargo run -- https://www.reidoscoins.com.br/
+cargo run -- URL-TARGET
 ```
 
 ---
 
-## 🔍 Exemplo de Output
+## 🔍 Example Output
 
 ```text
  ╔═╗╔═╗╦═╗╔═╗╦═╗╦ ╦╔═╗╦ ╦
  ║ ║╠═╝╠╦╝╠═╣╠╦╝║║║╠═╣╚╦╝
  ╚═╝╩  ╩╚═╩ ╩╩╚═╚╩╝╩ ╩ ╩ 
-    >> FERRIS FETCH <<
+      >> FERRIS FETCH <<
 
-[+] Attempting to crawl URL: https://www.reidoscoins.com.br/
+[+] Attempting to crawl URL: URL-TARGET
 [+] Found 48 unique assets/links for download.
 
-[*] Downloading (1/48) [Main HTML] -> https://www.reidoscoins.com.br/
+[*] Downloading (1/48) [Main HTML] -> URL-TARGET
 [+] Saved Main HTML to: downloads/index.html
 [-] Waiting 2 seconds (base delay)...
 
-[*] Downloading (2/48) [CSS] -> https://www.reidoscoins.com.br/style.css
-[+] Status SUCESSO: 200 OK
+[*] Downloading (2/48) [CSS] -> URL-TARGET
+[+] Status SUCCESS: 200 OK
 [+] Saved to: downloads/style.css
 ...
 ```
 
 ---
 
-## ⚙️ Configuração Interna
+## ⚙️ Internal Configuration
 
-Ajuste os parâmetros do Crawler em `src/main.rs`:
+You can adjust the crawler’s behavior in `src/main.rs`:
 
-| Constante                | Padrão | Descrição                                                          |
-| ------------------------ | ------ | ------------------------------------------------------------------ |
-| `MAX_RETRIES`            | **5**  | Máximo de tentativas de baixar um ativo após falha.                |
-| `INITIAL_DELAY_SECONDS`  | **2**  | Tempo de espera entre cada download.                               |
-| `RETRY_DELAY_MULTIPLIER` | **2**  | Multiplicador do atraso em caso de erro 429 (ex: 2s → 4s → 8s...). |
+| Constant                 | Default | Description                                                           |
+| ------------------------ | ------- | --------------------------------------------------------------------- |
+| `MAX_RETRIES`            | **5**   | Maximum number of retry attempts after a download failure.            |
+| `INITIAL_DELAY_SECONDS`  | **2**   | Delay (in seconds) between downloading each asset.                    |
+| `RETRY_DELAY_MULTIPLIER` | **2**   | Multiplier applied when encountering HTTP 429 (e.g. 2s → 4s → 8s...). |
 
 ---
 
-## 📄 Licença
+## 📄 License
 
-Este projeto é licenciado sob a **MIT License**.
+This project is licensed under the **MIT License**.
 
-**Autor:** *NoHup-lgtm*
+**Author:** *NoHup-lgtm*
