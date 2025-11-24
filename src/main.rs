@@ -9,7 +9,7 @@ use clap::Parser;
 use colored::*;
 use futures::stream::{self, StreamExt};
 use indicatif::{ProgressBar, ProgressStyle};
-use rand::seq::SliceRandom; // Para escolher User-Agent
+use rand::seq::SliceRandom;
 use reqwest::{Client, StatusCode};
 use scraper::{Html, Selector};
 use std::collections::HashSet;
@@ -23,11 +23,14 @@ use url::Url;
 const MAX_RETRIES: u32 = 5;
 const RETRY_DELAY_MULTIPLIER: u32 = 2;
 
+// Nova Arte: Estilo "Cyber-Rust"
 const FERRIS_FETCH_LOGO: &str = r#"
- ╔═╗╔═╗╦═╗╔═╗╦═╗╦ ╦╔═╗╦ ╦
- ║ ║╠═╝╠╦╝╠═╣╠╦╝║║║╠═╣╚╦╝
- ╚═╝╩  ╩╚═╩ ╩╩╚═╚╩╝╩ ╩ ╩ 
-    >> FERRIS FETCH <<
+███████╗███████╗██████╗ ██████╗ ██╗███████╗    ███████╗███████╗████████╗ ██████╗██╗  ██╗
+██╔════╝██╔════╝██╔══██╗██╔══██╗██║██╔════╝    ██╔════╝██╔════╝╚══██╔══╝██╔════╝██║  ██║
+█████╗  █████╗  ██████╔╝██████╔╝██║███████╗    █████╗  █████╗     ██║   ██║     ███████║
+██╔══╝  ██╔══╝  ██╔══██╗██╔══██╗██║╚════██║    ██╔══╝  ██╔══╝     ██║   ██║     ██╔══██║
+██║     ███████╗██║  ██║██║  ██║██║███████║    ██║     ███████╗   ██║   ╚██████╗██║  ██║
+╚═╝     ╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝╚═╝╚══════╝    ╚═╝     ╚══════╝   ╚═╝    ╚═════╝╚═╝  ╚═╝
 "#;
 
 #[derive(Parser, Debug)]
@@ -139,6 +142,22 @@ async fn download_asset(client: Client, url: String, downloads_dir: PathBuf, pb:
     pb.inc(1);
 }
 
+fn print_dashboard(url: &str, threads: usize, output: &str, ua: &str) {
+    // Limpa o terminal (opcional, mas dá um efeito legal)
+    print!("\x1B[2J\x1B[1;1H"); 
+    
+    println!("{}", FERRIS_FETCH_LOGO.truecolor(255, 100, 0).bold()); // Laranja Rust
+    println!("   {}", "v1.0.0 :: Developed by NoHup-lgtm".truecolor(150, 150, 150).italic());
+    println!("{}", "────────────────────────────────────────────────────────────".truecolor(60, 60, 60));
+    
+    println!("   {:<15} {}", "🎯 TARGET:".bold().cyan(), url);
+    println!("   {:<15} {}", "📂 OUTPUT:".bold().cyan(), output);
+    println!("   {:<15} {}", "⚡ THREADS:".bold().cyan(), threads);
+    println!("   {:<15} {}", "🕵️  STEALTH:".bold().cyan(), ua.chars().take(40).collect::<String>() + "...");
+    
+    println!("{}", "────────────────────────────────────────────────────────────\n".truecolor(60, 60, 60));
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut args = Args::parse();
@@ -147,11 +166,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         args.url = format!("https://{}", args.url);
     }
 
-    println!("{}", FERRIS_FETCH_LOGO.yellow());
-    println!("Developer: NoHup-lgtm | Version: 1.0.0");
-    
+    // Seleciona User-Agent
     let user_agent = get_random_user_agent();
-    println!("{} User-Agent: {}", "[*]".cyan(), user_agent);
+
+    // 1. Exibe o novo Dashboard Visual
+    print_dashboard(&args.url, args.threads, &args.output, user_agent);
 
     let client = Client::builder()
         .user_agent(user_agent)
@@ -164,12 +183,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         tokio::fs::create_dir_all(downloads_dir).await?;
     }
 
-    println!("{} Analisando: {}", "[*]".cyan(), args.url);
+    println!("{} Conectando ao alvo...", "[*]".yellow());
 
     let html_content = match client.get(&args.url).send().await {
         Ok(resp) => resp.text().await?,
         Err(e) => {
-            eprintln!("{} Erro ao conectar: {}", "[-]".red(), e);
+            eprintln!("{} Erro fatal ao conectar: {}", "[!]".red().bold(), e);
             return Ok(());
         }
     };
@@ -177,23 +196,27 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let index_path = downloads_dir.join("index.html");
     let mut index_file = File::create(&index_path)?;
     index_file.write_all(html_content.as_bytes())?;
-    println!("{} Index salvo.", "[+]".green());
+    println!("{} HTML principal capturado com sucesso.", "[+]".green());
 
+    println!("{} Extraindo links e assets...", "[*]".yellow());
     let mut assets = extract_assets(&html_content, &args.url);
     assets.remove(&args.url);
 
     let total_assets = assets.len() as u64;
-    println!("{} Encontrados {} arquivos.", "[+]".green(), total_assets);
+    
+    if total_assets == 0 { 
+        println!("{} Nenhum asset encontrado para baixar.", "[!]".yellow());
+        return Ok(()); 
+    }
 
-    if total_assets == 0 { return Ok(()); }
+    println!("{} Encontrados {} arquivos. Iniciando download massivo...", "[+]".green(), total_assets);
 
-    println!("{} Baixando com {} threads...", "[*]".cyan(), args.threads);
-
+    // Nova Barra de Progresso Estilizada
     let pb = ProgressBar::new(total_assets);
     pb.set_style(ProgressStyle::default_bar()
-        .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({eta})")
+        .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({eta}) {msg}")
         .unwrap()
-        .progress_chars("#>-"));
+        .progress_chars("█▓▒░  ")); // Estilo bloco sólido
 
     let fetch_tasks = stream::iter(assets)
         .map(|asset_url| {
@@ -209,7 +232,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     fetch_tasks.collect::<Vec<_>>().await;
 
     pb.finish_with_message("Concluído!");
-    println!("\n{} Download finalizado em: {}", "[OK]".green().bold(), downloads_dir.display());
+    
+    println!("\n{}", "════════════════════════════════════════════════════════════".truecolor(60, 60, 60));
+    println!("   {} Download finalizado com sucesso!", "✅".green());
+    println!("   {} Arquivos salvos em: {}", "📂".cyan(), downloads_dir.display().to_string().bold());
+    println!("{}", "════════════════════════════════════════════════════════════".truecolor(60, 60, 60));
 
     Ok(())
 }
