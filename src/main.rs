@@ -33,15 +33,12 @@ const FERRIS_FETCH_LOGO: &str = r#"
 #[derive(Parser, Debug)]
 #[command(author = "NoHup-lgtm", version = "1.0.0", about = "FerrisFetch: Concurrent Asset Downloader")]
 struct Args {
-    /// A URL alvo (ex: https://site.com)
     #[arg(required = true)]
     url: String,
 
-    /// Pasta de saída
     #[arg(short = 'o', long = "output", default_value = "downloads")]
     output: String,
 
-    /// Número de threads simultâneas
     #[arg(short = 't', long = "threads", default_value_t = 50)]
     threads: usize,
 }
@@ -101,7 +98,7 @@ async fn download_asset(client: Client, url: String, downloads_dir: PathBuf, pb:
     let file_path = downloads_dir.join(safe_name);
 
     if file_path.exists() {
-        pb.inc(1); // Já existe, pula
+        pb.inc(1); 
         return;
     }
 
@@ -128,7 +125,7 @@ async fn download_asset(client: Client, url: String, downloads_dir: PathBuf, pb:
                     sleep(Duration::from_secs(current_delay)).await;
                     current_delay *= RETRY_DELAY_MULTIPLIER as u64;
                 } else {
-                    pb.inc(1); // Erro 404/403, desiste
+                    pb.inc(1); 
                     return;
                 }
             },
@@ -146,7 +143,6 @@ async fn download_asset(client: Client, url: String, downloads_dir: PathBuf, pb:
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut args = Args::parse();
 
-    // Correção automática de URL
     if !args.url.starts_with("http") {
         args.url = format!("https://{}", args.url);
     }
