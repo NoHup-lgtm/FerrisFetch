@@ -1,6 +1,6 @@
 /*!
  * @toolname: FerrisFetch
- * @version: 1.0.0
+ * @version: 2.0.0
  * @author: NoHup-lgtm
  * @license: MIT
  */
@@ -23,7 +23,6 @@ use url::Url;
 const MAX_RETRIES: u32 = 5;
 const RETRY_DELAY_MULTIPLIER: u32 = 2;
 
-// Nova Arte: Estilo "Cyber-Rust"
 const FERRIS_FETCH_LOGO: &str = r#"
 ███████╗███████╗██████╗ ██████╗ ██╗███████╗    ███████╗███████╗████████╗ ██████╗██╗  ██╗
 ██╔════╝██╔════╝██╔══██╗██╔══██╗██║██╔════╝    ██╔════╝██╔════╝╚══██╔══╝██╔════╝██║  ██║
@@ -143,7 +142,6 @@ async fn download_asset(client: Client, url: String, downloads_dir: PathBuf, pb:
 }
 
 fn print_dashboard(url: &str, threads: usize, output: &str, ua: &str) {
-    // Limpa o terminal (opcional, mas dá um efeito legal)
     print!("\x1B[2J\x1B[1;1H"); 
     
     println!("{}", FERRIS_FETCH_LOGO.truecolor(255, 100, 0).bold()); // Laranja Rust
@@ -211,12 +209,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("{} Encontrados {} arquivos. Iniciando download massivo...", "[+]".green(), total_assets);
 
-    // Nova Barra de Progresso Estilizada
     let pb = ProgressBar::new(total_assets);
     pb.set_style(ProgressStyle::default_bar()
         .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({eta}) {msg}")
         .unwrap()
-        .progress_chars("█▓▒░  ")); // Estilo bloco sólido
+        .progress_chars("█▓▒░  ")); 
 
     let fetch_tasks = stream::iter(assets)
         .map(|asset_url| {
