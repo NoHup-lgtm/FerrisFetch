@@ -1,28 +1,27 @@
 /*!
  * @toolname: FerrisFetch
- * @version: 0.1.0
+ * @version: 1.0.0
  * @author: NoHup-lgtm
- * @date: 2025-11-21
  * @license: MIT
- *
- * Resilient Web Crawler that downloads the main HTML and all associated assets (CSS, JS, Images, links)
- * from a given URL, utilizing exponential backoff logic to prevent rate-limiting.
- * Usage: cargo run -- <URL>
  */
 
+use clap::Parser;
+use colored::*;
+use futures::stream::{self, StreamExt};
+use indicatif::{ProgressBar, ProgressStyle};
+use rand::seq::SliceRandom; // Para escolher User-Agent
 use reqwest::{Client, StatusCode};
-use tokio::time::{sleep, Duration};
+use scraper::{Html, Selector};
+use std::collections::HashSet;
 use std::fs::File;
 use std::io::Write;
-use std::path::Path;
+use std::path::{Path, PathBuf};
+use std::time::Duration;
+use tokio::time::sleep;
 use url::Url;
-use scraper::{Html, Selector};
-use colored::Colorize; 
-use std::env;
 
 const MAX_RETRIES: u32 = 5;
-const INITIAL_DELAY_SECONDS: u64 = 2; 
-const RETRY_DELAY_MULTIPLIER: u32 = 2; 
+const RETRY_DELAY_MULTIPLIER: u32 = 2;
 
 const FERRIS_FETCH_LOGO: &str = r#"
  ╔═╗╔═╗╦═╗╔═╗╦═╗╦ ╦╔═╗╦ ╦
@@ -31,38 +30,55 @@ const FERRIS_FETCH_LOGO: &str = r#"
     >> FERRIS FETCH <<
 "#;
 
-const DEVELOPER_INFO: &str = "Developer: NoHup-lgtm";
-const GITHUB_LINK: &str = "GitHub: https://github.com/NoHup-lgtm/FerrisFetch";
+#[derive(Parser, Debug)]
+#[command(author = "NoHup-lgtm", version = "1.0.0", about = "FerrisFetch: Concurrent Asset Downloader")]
+struct Args {
+    /// A URL alvo (ex: https://site.com)
+    #[arg(required = true)]
+    url: String,
 
+    /// Pasta de saída
+    #[arg(short = 'o', long = "output", default_value = "downloads")]
+    output: String,
 
-fn extract_assets(html_content: &str, base_url: &str) -> Vec<String> {
+    /// Número de threads simultâneas
+    #[arg(short = 't', long = "threads", default_value_t = 50)]
+    threads: usize,
+}
+
+fn get_random_user_agent() -> &'static str {
+    let agents = [
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Safari/605.1.15",
+        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/121.0",
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:109.0) Gecko/20100101 Firefox/121.0"
+    ];
+    agents.choose(&mut rand::thread_rng()).unwrap()
+}
+
+fn extract_assets(html_content: &str, base_url: &str) -> HashSet<String> {
     let document = Html::parse_document(html_content);
     let base = match Url::parse(base_url) {
         Ok(u) => u,
-        Err(_) => {
-            eprintln!("{} Invalid base URL: {}", "[-]".red(), base_url);
-            return Vec::new();
-        }
+        Err(_) => return HashSet::new(),
     };
-    let mut assets = Vec::new();
-
+    
+    let mut assets = HashSet::new();
     let selectors = vec![
-        ("a", "href"),          
-        ("img", "src"),         
-        ("link", "href"),      
-        ("script", "src"),      
+        ("a", "href"), ("img", "src"), ("link", "href"), 
+        ("script", "src"), ("video", "src"), ("source", "src"), ("audio", "src")
     ];
 
     for (tag, attr) in selectors {
-        let selector = match Selector::parse(tag) {
-            Ok(s) => s,
-            Err(_) => continue, 
-        };
-        
-        for element in document.select(&selector) {
-            if let Some(href) = element.value().attr(attr) {
-                if let Ok(absolute_url) = base.join(href) {
-                    assets.push(absolute_url.to_string());
+        if let Ok(selector) = Selector::parse(tag) {
+            for element in document.select(&selector) {
+                if let Some(href) = element.value().attr(attr) {
+                    if let Ok(absolute_url) = base.join(href) {
+                        if absolute_url.scheme().starts_with("http") {
+                            assets.insert(absolute_url.to_string());
+                        }
+                    }
                 }
             }
         }
@@ -70,160 +86,134 @@ fn extract_assets(html_content: &str, base_url: &str) -> Vec<String> {
     assets
 }
 
-async fn download_asset(
-    client: &Client,
-    url: &str,
-    downloads_dir: &Path,
-) -> Result<(), Box<dyn std::error::Error>> {
+async fn download_asset(client: Client, url: String, downloads_dir: PathBuf, pb: ProgressBar) {
+    let parsed_url = match Url::parse(&url) {
+        Ok(u) => u,
+        Err(_) => return,
+    };
+
+    let file_name = parsed_url.path_segments()
+        .map(|c| c.last().unwrap_or("index.html"))
+        .unwrap_or("index.html");
     
-    let mut current_delay = INITIAL_DELAY_SECONDS;
+    let safe_name = sanitize_filename::sanitize(file_name);
+    let safe_name = if safe_name.is_empty() { "unknown_file".to_string() } else { safe_name };
+    let file_path = downloads_dir.join(safe_name);
+
+    if file_path.exists() {
+        pb.inc(1); // Já existe, pula
+        return;
+    }
+
+    let mut current_delay = 1;
     let mut retries = 0;
-    
+
     while retries < MAX_RETRIES {
-        match client.get(url).send().await {
+        match client.get(&url).send().await {
             Ok(response) => {
                 let status = response.status();
-                
                 if status.is_success() {
-                    println!("{} Success Status: {}", "[+]".green(), status);
-                    
-                    let bytes = response.bytes().await?;
-
-                    let parsed_url = Url::parse(url)?;
-                    let segments = parsed_url.path_segments().unwrap();
-                    let file_name = segments.last().unwrap_or("index").to_string();
-
-                    let file_path = downloads_dir.join(file_name);
-                    let mut file = File::create(&file_path)?;
-                    file.write_all(&bytes)?;
-
-                    println!("{} Saved to: {}", "[+]".green(), file_path.display());
-                    return Ok(());
-                    
+                    if let Ok(bytes) = response.bytes().await {
+                        let path_clone = file_path.clone();
+                        let _ = tokio::task::spawn_blocking(move || {
+                            if let Ok(mut file) = File::create(path_clone) {
+                                let _ = file.write_all(&bytes);
+                            }
+                        }).await;
+                        pb.inc(1);
+                        return;
+                    }
                 } else if status == StatusCode::TOO_MANY_REQUESTS || status.is_server_error() {
                     retries += 1;
-                    eprintln!(
-                        "{} ERROR {}: Rate limit hit. Attempt {} of {}. Waiting {}s...", 
-                        "[-]".red(), status, retries, MAX_RETRIES, current_delay
-                    );
-                    
-                    sleep(Duration::from_secs(current_delay)).await;
-                    current_delay *= RETRY_DELAY_MULTIPLIER as u64; 
-                    
-                } else {
-                    eprintln!("{} Fatal error downloading {}: Status {}", "[-]".red(), url, status);
-                    return Err(format!("HTTP Error: {}", status).into());
-                }
-            }
-            Err(e) => {
-                retries += 1;
-                eprintln!("{} Network error: {}. Attempt {} of {}.", "[-]".red(), e, retries, MAX_RETRIES);
-                
-                if retries < MAX_RETRIES {
                     sleep(Duration::from_secs(current_delay)).await;
                     current_delay *= RETRY_DELAY_MULTIPLIER as u64;
                 } else {
-                    return Err(format!("Final network failure: {}", e).into());
+                    pb.inc(1); // Erro 404/403, desiste
+                    return;
                 }
+            },
+            Err(_) => {
+                retries += 1;
+                sleep(Duration::from_secs(current_delay)).await;
+                current_delay *= RETRY_DELAY_MULTIPLIER as u64;
             }
         }
     }
-    
-    Err(format!("Final failure: Could not download {} after {} attempts.", url, MAX_RETRIES).into())
+    pb.inc(1);
 }
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let mut args = Args::parse();
 
-    let args: Vec<String> = env::args().collect();
-    
-    if args.len() < 2 {
-        println!("{}", FERRIS_FETCH_LOGO.yellow());
-        println!("{}", DEVELOPER_INFO.cyan());
-        println!("{} {}", "*".white(), GITHUB_LINK.blue());
-        println!("\n{} ERROR: URL not provided!", "[-]".red().bold());
-        println!("{} Correct Usage: {}", "[*]".cyan(), "cargo run -- https://example.com/".yellow().bold());
-        return Ok(());
+    // Correção automática de URL
+    if !args.url.starts_with("http") {
+        args.url = format!("https://{}", args.url);
     }
-    
-    let target_url = &args[1];
 
     println!("{}", FERRIS_FETCH_LOGO.yellow());
-    println!("{}", DEVELOPER_INFO.cyan());
-    println!("{} {}", "*".white(), GITHUB_LINK.blue());
-    println!(""); 
-
-    println!("{} Setting Up Standard Client...", "[+]".green());
+    println!("Developer: NoHup-lgtm | Version: 1.0.0");
     
+    let user_agent = get_random_user_agent();
+    println!("{} User-Agent: {}", "[*]".cyan(), user_agent);
+
     let client = Client::builder()
-        .user_agent("FerrisFetch-Full-Crawler-v0.1")
+        .user_agent(user_agent)
+        .timeout(Duration::from_secs(15))
+        .danger_accept_invalid_certs(true)
         .build()?;
 
-    let downloads_dir = Path::new("downloads");
-    
+    let downloads_dir = Path::new(&args.output);
     if !downloads_dir.exists() {
-        tokio::fs::create_dir_all(&downloads_dir).await?;
-        println!("{} Directory created in: {}", "[+]".green(), downloads_dir.display());
+        tokio::fs::create_dir_all(downloads_dir).await?;
     }
-    
-    println!("{} Attempting to crawl URL: {}", "[+]".green(), target_url);
 
-    let html_response = match client.get(target_url).send().await {
-        Ok(r) => r.text().await?,
+    println!("{} Analisando: {}", "[*]".cyan(), args.url);
+
+    let html_content = match client.get(&args.url).send().await {
+        Ok(resp) => resp.text().await?,
         Err(e) => {
-            eprintln!("{} FAILED to download main HTML: {}", "[-]".red(), e);
-            return Err(e.into());
+            eprintln!("{} Erro ao conectar: {}", "[-]".red(), e);
+            return Ok(());
         }
     };
 
-    let assets_to_download = extract_assets(&html_response, target_url);
+    let index_path = downloads_dir.join("index.html");
+    let mut index_file = File::create(&index_path)?;
+    index_file.write_all(html_content.as_bytes())?;
+    println!("{} Index salvo.", "[+]".green());
 
-    let mut unique_assets: Vec<String> = vec![target_url.to_string()];
+    let mut assets = extract_assets(&html_content, &args.url);
+    assets.remove(&args.url);
 
-    for asset in assets_to_download.into_iter() {
-        if !unique_assets.contains(&asset) {
-            unique_assets.push(asset);
-        }
-    }
+    let total_assets = assets.len() as u64;
+    println!("{} Encontrados {} arquivos.", "[+]".green(), total_assets);
 
-    println!("{} Found {} unique assets/links for download.", "[+]".green(), unique_assets.len());
+    if total_assets == 0 { return Ok(()); }
 
-    for (index, url) in unique_assets.iter().enumerate() {
+    println!("{} Baixando com {} threads...", "[*]".cyan(), args.threads);
 
-        let file_type = if url.ends_with(".css") { "CSS" }
-                        else if url.ends_with(".js") { "JS" }
-                        else if url.ends_with(".png") || url.ends_with(".jpg") || url.ends_with(".svg") { "IMAGE" }
-                        else if index == 0 { "Main HTML" }
-                        else { "LINK" };
+    let pb = ProgressBar::new(total_assets);
+    pb.set_style(ProgressStyle::default_bar()
+        .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({eta})")
+        .unwrap()
+        .progress_chars("#>-"));
 
-        println!("\n{} Downloading ({}/{}) [{}] -> {}", 
-            "[*]".cyan(), index + 1, unique_assets.len(), file_type, url
-        );
+    let fetch_tasks = stream::iter(assets)
+        .map(|asset_url| {
+            let client = client.clone();
+            let dir = downloads_dir.to_path_buf();
+            let pb = pb.clone();
+            tokio::spawn(async move {
+                download_asset(client, asset_url, dir, pb).await;
+            })
+        })
+        .buffer_unordered(args.threads);
 
-        if index == 0 {
-            let file_path = downloads_dir.join("index.html");
-            let mut file = File::create(&file_path)?;
-            file.write_all(html_response.as_bytes())?;
-            println!("{} Saved Main HTML to: {}", "[+]".green(), file_path.display());
-            
-        } else {
+    fetch_tasks.collect::<Vec<_>>().await;
 
-            match download_asset(&client, url, downloads_dir).await {
-                Ok(_) => {}, 
-                Err(e) => {
-                    eprintln!("{} FAILED to download asset {}: {}", "[-]".red(), file_type, e);
-                }
-            }
-        }
+    pb.finish_with_message("Concluído!");
+    println!("\n{} Download finalizado em: {}", "[OK]".green().bold(), downloads_dir.display());
 
-        if index < unique_assets.len() - 1 {
-            println!("{} Waiting {} seconds (base delay)...", 
-                "[-]".yellow(), INITIAL_DELAY_SECONDS
-            );
-            sleep(Duration::from_secs(INITIAL_DELAY_SECONDS)).await;
-        }
-    }
-    
-    println!("\n{} All asset downloads completed.", "[+]".green());
     Ok(())
 }
